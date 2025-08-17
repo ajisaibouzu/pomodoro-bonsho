@@ -3,7 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ポモドーロタイマー</title>
+    <title>梵鐘タイマー</title>
+    
+    <!-- PWA対応メタタグ -->
+    <meta name="theme-color" content="#8b7355">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="梵鐘タイマー">
+    
+    <!-- マニフェストファイル -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- アイコン -->
+    <link rel="icon" type="image/png" href="bonsho.png.png">
+    <link rel="apple-touch-icon" href="bonsho.png.png">
     <style>
         * {
             margin: 0;
@@ -321,10 +334,14 @@
                 this.totalWorkTime = parseInt(localStorage.getItem('totalWorkTime') || '0');
                 this.totalBreakTime = parseInt(localStorage.getItem('totalBreakTime') || '0');
                 
+                // Wake Lock API 初期化
+                this.wakeLock = null;
+                
                 this.initializeElements();
                 this.bindEvents();
                 this.updateDisplay();
                 this.updateStats();
+                this.requestNotificationPermission();
             }
             
             initializeElements() {
@@ -351,12 +368,15 @@
                 this.longBreakBtn.addEventListener('click', () => this.switchMode('longBreak'));
             }
             
-            start() {
+            async start() {
                 if (!this.isRunning) {
                     this.isRunning = true;
                     this.timer = setInterval(() => this.tick(), 1000);
                     this.startBtn.style.display = 'none';
                     this.pauseBtn.style.display = 'inline-block';
+                    
+                    // Wake Lock を取得してスリープを防止
+                    await this.requestWakeLock();
                 }
             }
             
@@ -366,6 +386,9 @@
                     clearInterval(this.timer);
                     this.startBtn.style.display = 'inline-block';
                     this.pauseBtn.style.display = 'none';
+                    
+                    // Wake Lock を解除
+                    this.releaseWakeLock();
                 }
             }
             
@@ -381,6 +404,9 @@
             tick() {
                 this.timeLeft--;
                 this.updateDisplay();
+                
+                // Service Worker にタイマー状態を送信
+                this.sendTimerStateToServiceWorker();
                 
                 if (this.timeLeft <= 0) {
                     this.completeSession();
@@ -491,8 +517,64 @@
                 
                 alert(message);
             }
+            
+            // 通知許可をリクエスト
+            async requestNotificationPermission() {
+                if ('Notification' in window && Notification.permission === 'default') {
+                    await Notification.requestPermission();
+                }
+            }
+            
+            // Wake Lock API でスリープ防止
+            async requestWakeLock() {
+                if ('wakeLock' in navigator) {
+                    try {
+                        this.wakeLock = await navigator.wakeLock.request('screen');
+                        console.log('Wake Lock取得成功');
+                        
+                        this.wakeLock.addEventListener('release', () => {
+                            console.log('Wake Lock解除');
+                        });
+                    } catch (err) {
+                        console.log('Wake Lock取得失敗:', err);
+                    }
+                }
+            }
+            
+            // Wake Lock 解除
+            releaseWakeLock() {
+                if (this.wakeLock) {
+                    this.wakeLock.release();
+                    this.wakeLock = null;
+                }
+            }
+            
+            // Service Worker にタイマー状態を送信
+            sendTimerStateToServiceWorker() {
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        type: 'TIMER_UPDATE',
+                        timeLeft: this.timeLeft,
+                        mode: this.modes[this.currentMode].name,
+                        isRunning: this.isRunning
+                    });
+                }
+            }
         }
         
+        // Service Worker 登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('Service Worker登録成功:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker登録失敗:', error);
+                    });
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             new PomodoroTimer();
         });

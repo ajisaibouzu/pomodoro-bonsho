@@ -1,0 +1,29 @@
+{
+  "name": "梵鐘タイマー",
+  "short_name": "梵鐘タイマー",
+  "description": "和風デザインのポモドーロタイマーアプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#4a3f34",
+  "theme_color": "#8b7355",
+  "orientation": "portrait",
+  "scope": "./",
+  "lang": "ja",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "bonsho.png.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "bonsho.png.png",
+      "sizes": "any",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}

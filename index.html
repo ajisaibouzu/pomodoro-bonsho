@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ポモドーロタイマー</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Serif JP', 'Yu Mincho', 'YuMincho', 'Hiragino Mincho Pro', serif;
+            background: linear-gradient(135deg, #4a3f34 0%, #3d3428 50%, #52524e 100%);
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(93, 78, 55, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(75, 75, 75, 0.15) 0%, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #d4c4a8;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23000" opacity="0.02"/><circle cx="50" cy="50" r="1" fill="%23d2b48c" opacity="0.1"/></svg>');
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            text-align: center;
+            background: linear-gradient(145deg, rgba(139, 115, 85, 0.3), rgba(93, 78, 55, 0.4));
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(245, 245, 220, 0.2),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(139, 115, 85, 0.4);
+            max-width: 420px;
+            width: 90%;
+            position: relative;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #8b7355, #696969, #5d4e37);
+            border-radius: 17px;
+            z-index: -1;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 30px;
+            font-weight: 500;
+            color: #f0e6d2;
+            text-shadow: 
+                2px 2px 4px rgba(0, 0, 0, 0.7),
+                1px 1px 2px rgba(0, 0, 0, 0.5),
+                0 0 10px rgba(240, 230, 210, 0.3);
+            letter-spacing: 0.1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .bell-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .timer-display {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 30px 0;
+            font-family: 'Noto Serif JP', 'Yu Mincho', serif;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
+            color: #d4c4a8;
+            background: linear-gradient(135deg, rgba(93, 78, 55, 0.4), rgba(75, 75, 75, 0.3));
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+        }
+
+        .mode-display {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: #e8dcc6;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-shadow: 
+                1px 1px 3px rgba(0, 0, 0, 0.6),
+                0 0 8px rgba(232, 220, 198, 0.4);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1));
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(232, 220, 198, 0.2);
+            display: inline-block;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: linear-gradient(145deg, rgba(93, 78, 55, 0.6), rgba(75, 62, 45, 0.7));
+            border: 2px solid rgba(93, 78, 55, 0.8);
+            color: #d4c4a8;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: 'Noto Serif JP', serif;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 4px 8px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(212, 196, 168, 0.1);
+        }
+
+        button:hover {
+            background: linear-gradient(145deg, rgba(139, 115, 85, 0.6), rgba(93, 78, 55, 0.7));
+            transform: translateY(-2px);
+            box-shadow: 
+                0 6px 12px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(212, 196, 168, 0.2);
+            border-color: rgba(139, 115, 85, 0.8);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .mode-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .mode-buttons button {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+        }
+
+        .active-mode {
+            background: linear-gradient(145deg, rgba(210, 180, 140, 0.4), rgba(139, 115, 85, 0.6)) !important;
+            font-weight: bold;
+            border-color: rgba(210, 180, 140, 0.8) !important;
+            color: #fff !important;
+            box-shadow: 
+                0 0 15px rgba(210, 180, 140, 0.3),
+                inset 0 1px 0 rgba(212, 196, 168, 0.3) !important;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, rgba(93, 78, 55, 0.4), rgba(105, 105, 105, 0.4));
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #d2b48c, #deb887, #f5deb3);
+            border-radius: 3px;
+            transition: width 1s linear;
+            width: 0%;
+            box-shadow: 0 0 10px rgba(210, 180, 140, 0.5);
+        }
+
+        .stats {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(145deg, rgba(93, 78, 55, 0.3), rgba(105, 105, 105, 0.2));
+            border-radius: 10px;
+            text-align: left;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats h3 {
+            margin-bottom: 15px;
+            text-align: center;
+            color: #c4b091;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .timer-display {
+                font-size: 3rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <audio id="timerSound" preload="auto">
+        <source src="Bonsho04/Bonsho04-2(High).mp3" type="audio/mpeg">
+    </audio>
+    
+    <div class="container">
+        <h1>
+            <img src="bonsho.png.png" alt="鐘" class="bell-icon">
+            梵鐘タイマー
+        </h1>
+        
+        <div class="mode-display" id="modeDisplay">修行時間</div>
+        
+        <div class="timer-display" id="timerDisplay">25:00</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn">スタート</button>
+            <button id="pauseBtn">一時停止</button>
+            <button id="resetBtn">リセット</button>
+        </div>
+        
+        <div class="mode-buttons">
+            <button id="workBtn" class="active-mode">修行 (25分)</button>
+            <button id="shortBreakBtn">小憩 (5分)</button>
+            <button id="longBreakBtn">大憩 (15分)</button>
+        </div>
+        
+        <div class="stats">
+            <h3>📊 統計</h3>
+            <div class="stat-item">
+                <span>完了したポモドーロ:</span>
+                <span id="completedPomodoros">0</span>
+            </div>
+            <div class="stat-item">
+                <span>今日の修行時間:</span>
+                <span id="totalWorkTime">0分</span>
+            </div>
+            <div class="stat-item">
+                <span>今日の休憩時間:</span>
+                <span id="totalBreakTime">0分</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class PomodoroTimer {
+            constructor() {
+                this.modes = {
+                    work: { name: '修行時間', duration: 25 * 60, color: '#8b7355' },
+                    shortBreak: { name: '小憩', duration: 5 * 60, color: '#696969' },
+                    longBreak: { name: '大憩', duration: 15 * 60, color: '#5d4e37' }
+                };
+                
+                this.currentMode = 'work';
+                this.timeLeft = this.modes[this.currentMode].duration;
+                this.totalTime = this.modes[this.currentMode].duration;
+                this.isRunning = false;
+                this.timer = null;
+                
+                this.completedPomodoros = parseInt(localStorage.getItem('completedPomodoros') || '0');
+                this.totalWorkTime = parseInt(localStorage.getItem('totalWorkTime') || '0');
+                this.totalBreakTime = parseInt(localStorage.getItem('totalBreakTime') || '0');
+                
+                this.initializeElements();
+                this.bindEvents();
+                this.updateDisplay();
+                this.updateStats();
+            }
+            
+            initializeElements() {
+                this.timerDisplay = document.getElementById('timerDisplay');
+                this.modeDisplay = document.getElementById('modeDisplay');
+                this.progressFill = document.getElementById('progressFill');
+                this.startBtn = document.getElementById('startBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.workBtn = document.getElementById('workBtn');
+                this.shortBreakBtn = document.getElementById('shortBreakBtn');
+                this.longBreakBtn = document.getElementById('longBreakBtn');
+                this.completedPomodorosDisplay = document.getElementById('completedPomodoros');
+                this.totalWorkTimeDisplay = document.getElementById('totalWorkTime');
+                this.totalBreakTimeDisplay = document.getElementById('totalBreakTime');
+            }
+            
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.start());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                this.workBtn.addEventListener('click', () => this.switchMode('work'));
+                this.shortBreakBtn.addEventListener('click', () => this.switchMode('shortBreak'));
+                this.longBreakBtn.addEventListener('click', () => this.switchMode('longBreak'));
+            }
+            
+            start() {
+                if (!this.isRunning) {
+                    this.isRunning = true;
+                    this.timer = setInterval(() => this.tick(), 1000);
+                    this.startBtn.style.display = 'none';
+                    this.pauseBtn.style.display = 'inline-block';
+                }
+            }
+            
+            pause() {
+                if (this.isRunning) {
+                    this.isRunning = false;
+                    clearInterval(this.timer);
+                    this.startBtn.style.display = 'inline-block';
+                    this.pauseBtn.style.display = 'none';
+                }
+            }
+            
+            reset() {
+                this.pause();
+                this.timeLeft = this.modes[this.currentMode].duration;
+                this.totalTime = this.modes[this.currentMode].duration;
+                this.updateDisplay();
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+            }
+            
+            tick() {
+                this.timeLeft--;
+                this.updateDisplay();
+                
+                if (this.timeLeft <= 0) {
+                    this.completeSession();
+                }
+            }
+            
+            completeSession() {
+                this.pause();
+                this.playNotificationSound();
+                
+                if (this.currentMode === 'work') {
+                    this.completedPomodoros++;
+                    this.totalWorkTime += Math.floor(this.modes.work.duration / 60);
+                    
+                    if (this.completedPomodoros % 4 === 0) {
+                        this.switchMode('longBreak');
+                    } else {
+                        this.switchMode('shortBreak');
+                    }
+                } else {
+                    this.totalBreakTime += Math.floor(this.modes[this.currentMode].duration / 60);
+                    this.switchMode('work');
+                }
+                
+                this.saveStats();
+                this.updateStats();
+                
+                this.showNotification(`${this.modes[this.currentMode].name}が完了しました！`);
+            }
+            
+            switchMode(mode) {
+                this.pause();
+                this.currentMode = mode;
+                this.timeLeft = this.modes[mode].duration;
+                this.totalTime = this.modes[mode].duration;
+                this.updateDisplay();
+                this.updateModeButtons();
+                
+                document.body.style.background = `linear-gradient(135deg, ${this.modes[mode].color} 0%, #764ba2 100%)`;
+            }
+            
+            updateDisplay() {
+                const minutes = Math.floor(this.timeLeft / 60);
+                const seconds = this.timeLeft % 60;
+                this.timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                this.modeDisplay.textContent = this.modes[this.currentMode].name;
+                
+                const progress = ((this.totalTime - this.timeLeft) / this.totalTime) * 100;
+                this.progressFill.style.width = `${progress}%`;
+                
+                document.title = `${this.timerDisplay.textContent} - ${this.modes[this.currentMode].name}`;
+            }
+            
+            updateModeButtons() {
+                document.querySelectorAll('.mode-buttons button').forEach(btn => {
+                    btn.classList.remove('active-mode');
+                });
+                
+                const activeBtn = {
+                    work: this.workBtn,
+                    shortBreak: this.shortBreakBtn,
+                    longBreak: this.longBreakBtn
+                }[this.currentMode];
+                
+                activeBtn.classList.add('active-mode');
+            }
+            
+            updateStats() {
+                this.completedPomodorosDisplay.textContent = this.completedPomodoros;
+                this.totalWorkTimeDisplay.textContent = `${this.totalWorkTime}分`;
+                this.totalBreakTimeDisplay.textContent = `${this.totalBreakTime}分`;
+            }
+            
+            saveStats() {
+                localStorage.setItem('completedPomodoros', this.completedPomodoros.toString());
+                localStorage.setItem('totalWorkTime', this.totalWorkTime.toString());
+                localStorage.setItem('totalBreakTime', this.totalBreakTime.toString());
+            }
+            
+            playNotificationSound() {
+                const audio = document.getElementById('timerSound');
+                if (audio) {
+                    audio.currentTime = 0;
+                    audio.play().catch(error => {
+                        console.log('音声再生エラー:', error);
+                    });
+                }
+            }
+            
+            showNotification(message) {
+                if ('Notification' in window) {
+                    if (Notification.permission === 'granted') {
+                        new Notification('梵鐘タイマー', {
+                            body: message,
+                            icon: 'bonsho.png.png'
+                        });
+                    } else if (Notification.permission !== 'denied') {
+                        Notification.requestPermission().then(permission => {
+                            if (permission === 'granted') {
+                                new Notification('梵鐘タイマー', {
+                                    body: message,
+                                    icon: 'bonsho.png.png'
+                                });
+                            }
+                        });
+                    }
+                }
+                
+                alert(message);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            new PomodoroTimer();
+        });
+    </script>
+</body>
+</html>

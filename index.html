@@ -337,11 +337,17 @@
                 // Wake Lock API 初期化
                 this.wakeLock = null;
                 
+                // バックグラウンドタイマー管理
+                this.lastActiveTime = Date.now();
+                this.backgroundTimer = null;
+                this.audioEnabled = false;
+                
                 this.initializeElements();
                 this.bindEvents();
                 this.updateDisplay();
                 this.updateStats();
                 this.requestNotificationPermission();
+                this.setupVisibilityHandler();
             }
             
             initializeElements() {
@@ -360,12 +366,19 @@
             }
             
             bindEvents() {
-                this.startBtn.addEventListener('click', () => this.start());
+                this.startBtn.addEventListener('click', async () => {
+                    await this.enableAudio();
+                    this.start();
+                });
                 this.pauseBtn.addEventListener('click', () => this.pause());
                 this.resetBtn.addEventListener('click', () => this.reset());
                 this.workBtn.addEventListener('click', () => this.switchMode('work'));
                 this.shortBreakBtn.addEventListener('click', () => this.switchMode('shortBreak'));
                 this.longBreakBtn.addEventListener('click', () => this.switchMode('longBreak'));
+                
+                // タッチイベントで音声有効化
+                document.addEventListener('touchstart', () => this.enableAudio(), { once: true });
+                document.addEventListener('click', () => this.enableAudio(), { once: true });
             }
             
             async start() {
@@ -486,13 +499,21 @@
                 localStorage.setItem('totalBreakTime', this.totalBreakTime.toString());
             }
             
-            playNotificationSound() {
+            async playNotificationSound() {
                 const audio = document.getElementById('timerSound');
-                if (audio) {
-                    audio.currentTime = 0;
-                    audio.play().catch(error => {
+                if (audio && this.audioEnabled) {
+                    try {
+                        audio.currentTime = 0;
+                        await audio.play();
+                        console.log('音声再生成功');
+                    } catch (error) {
                         console.log('音声再生エラー:', error);
-                    });
+                        // フォールバック音声
+                        this.playFallbackSound();
+                    }
+                } else {
+                    // 音声が無効な場合はフォールバック
+                    this.playFallbackSound();
                 }
             }
             
@@ -559,6 +580,101 @@
                         isRunning: this.isRunning
                     });
                 }
+            }
+            
+            // 音声有効化（ユーザー操作必須）
+            async enableAudio() {
+                if (!this.audioEnabled) {
+                    const audio = document.getElementById('timerSound');
+                    if (audio) {
+                        try {
+                            // ダミー再生で権限取得
+                            audio.volume = 0.01;
+                            await audio.play();
+                            audio.pause();
+                            audio.currentTime = 0;
+                            audio.volume = 1.0;
+                            this.audioEnabled = true;
+                            console.log('音声権限取得成功');
+                        } catch (error) {
+                            console.log('音声権限取得失敗:', error);
+                        }
+                    }
+                }
+            }
+            
+            // フォールバック音声（Web Audio API）
+            playFallbackSound() {
+                try {
+                    const context = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = context.createOscillator();
+                    const gainNode = context.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(context.destination);
+                    
+                    // 鐘の音を模擬
+                    oscillator.frequency.setValueAtTime(400, context.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(200, context.currentTime + 0.5);
+                    oscillator.frequency.exponentialRampToValueAtTime(100, context.currentTime + 1.0);
+                    
+                    gainNode.gain.setValueAtTime(0.3, context.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1.5);
+                    
+                    oscillator.start(context.currentTime);
+                    oscillator.stop(context.currentTime + 1.5);
+                    
+                    console.log('フォールバック音声再生');
+                } catch (error) {
+                    console.log('フォールバック音声エラー:', error);
+                }
+            }
+            
+            // Page Visibility API でバックグラウンド処理
+            setupVisibilityHandler() {
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) {
+                        // バックグラウンドに移行
+                        this.lastActiveTime = Date.now();
+                        if (this.isRunning) {
+                            this.startBackgroundTimer();
+                        }
+                    } else {
+                        // フォアグラウンドに復帰
+                        if (this.backgroundTimer) {
+                            this.syncFromBackground();
+                        }
+                    }
+                });
+            }
+            
+            // バックグラウンドタイマー開始
+            startBackgroundTimer() {
+                this.backgroundTimer = setInterval(() => {
+                    if (this.isRunning && this.timeLeft > 0) {
+                        this.timeLeft--;
+                        if (this.timeLeft <= 0) {
+                            this.completeSession();
+                        }
+                    }
+                }, 1000);
+            }
+            
+            // バックグラウンドからの同期
+            syncFromBackground() {
+                if (this.backgroundTimer) {
+                    clearInterval(this.backgroundTimer);
+                    this.backgroundTimer = null;
+                }
+                
+                const elapsed = Math.floor((Date.now() - this.lastActiveTime) / 1000);
+                if (this.isRunning && elapsed > 0) {
+                    this.timeLeft = Math.max(0, this.timeLeft - elapsed);
+                    if (this.timeLeft <= 0) {
+                        this.completeSession();
+                    }
+                }
+                this.updateDisplay();
             }
         }
         
